@@ -54,7 +54,7 @@ class GoogleCloudSpeech:
         with open(AUDIO_FILE, 'rb') as stream:
             sample = self.client.sample(stream=stream, encoding=speech.Encoding.LINEAR16, sample_rate_hertz=16000)
             results = sample.streaming_recognize(
-                    language_code='ko-KR',
+                    language_code='en-US',
                     interim_results=True,
                     single_utterance=False,
                     speech_contexts=self.vocabulary)
