@@ -1,0 +1,5 @@
+main page: https://cloud.google.com/speech/
+
+go to https://console.cloud.google.com/apis/credentials
+select Create service account key
+download json file for your service account

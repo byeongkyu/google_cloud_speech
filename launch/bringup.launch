@@ -1,0 +1,8 @@
+<launch>
+    <arg name="vocabulary_file" default=""/>
+
+    <env name="GOOGLE_APPLICATION_CREDENTIALS" value="$(find google_cloud_speech)/config/service_key.json"/>
+    <node name="speech_node" type="speech_node.py" pkg="google_cloud_speech" output="screen">
+        <param name="vocabulary_file" value="$(arg vocabulary_file)"/>
+    </node>
+</launch>
