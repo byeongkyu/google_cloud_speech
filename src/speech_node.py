@@ -79,7 +79,7 @@ class RecordWav:
     THRESHOLD = 1600  # audio levels not normalised.
     BUFFERSIZE = 2 ** 12
 
-    SILENT_CHUNKS = 2 * RATE / CHUNK_SIZE  # about 1sec
+    SILENT_CHUNKS = 6 * RATE / CHUNK_SIZE  # about 1sec
     FORMAT = pyaudio.paInt16
     FRAME_MAX_VALUE = 2 ** 15 - 1
     NORMALIZE_MINUS_ONE_dB = 10 ** (-1.0 / 20)
@@ -175,7 +175,7 @@ class RecordWav:
                     self.pub_start_speech.publish()
             else:
                 silent_count += 1
-                if silent_count > 10:
+                if silent_count > 50:
                     silent_count = 0;
                     rospy.logdebug("Silency detected...")
                     self.pub_silency_detected.publish()
