@@ -19,7 +19,9 @@ from google.cloud import speech
 
 import rospy
 from std_msgs.msg import Bool, String, Float64, Empty
+from dynamic_reconfigure.server import Server
 from google_cloud_speech.msg import RecognizedWord
+from google_cloud_speech.cfg import RecognitionConfig
 
 
 ERROR_HANDLER_FUNC = CFUNCTYPE(None, c_char_p, c_int, c_char_p, c_int, c_char_p)
@@ -43,6 +45,7 @@ class GoogleCloudSpeech:
     def __init__(self):
         self.client = speech.Client()
         self.pub_recognized_word = rospy.Publisher('recognized_word', RecognizedWord, queue_size=10)
+        self.language_code = 'en_US'
         self.vocabulary_file = rospy.get_param('~vocabulary_file', "")
         self.vocabulary = []
         if self.vocabulary_file != '':
@@ -52,13 +55,18 @@ class GoogleCloudSpeech:
                 self.vocabulary = yaml.load(f)
                 rospy.loginfo('load user vocabulary...')
 
+    def set_language_code(self, lang):
+        self.language_code = lang
+
     def recognize(self):
         with open(AUDIO_FILE, 'rb') as stream:
             sample = self.client.sample(
                 stream=stream, encoding=speech.Encoding.LINEAR16,
                 sample_rate_hertz=16000)
+
+            rospy.loginfo('Request to cloud.google.com...')
             results = sample.streaming_recognize(
-                language_code='en-US',
+                language_code=self.language_code,
                 interim_results=True,
                 single_utterance=False,
                 speech_contexts=self.vocabulary)
@@ -78,6 +86,7 @@ class GoogleCloudSpeech:
                             self.pub_recognized_word.publish(msg)
             except:
                 pass
+            rospy.loginfo('Response from cloud.google.com...')
 
 
 class RecordWav:
@@ -106,6 +115,9 @@ class RecordWav:
         self.pub_end_speech = rospy.Publisher('end_of_speech', Empty, queue_size=10)
         self.pub_silency_detected = rospy.Publisher('silency_detected', Empty, queue_size=10)
 
+    def set_threshold(self, value):
+        self.threshold = value
+
     def handle_enable_recognition(self, msg):
         if msg.data:
             rospy.logdebug('enable_recognition...')
@@ -116,7 +128,7 @@ class RecordWav:
 
     def is_silent(self, data_chunk):
         """Returns 'True' if below the 'silent' threshold"""
-        return max(data_chunk) < rospy.get_param('~audio_threshold', 2000)
+        return max(data_chunk) < RecordWav.THRESHOLD
 
     def normalize(self, data_all):
         """Amplify the volume out to max -1dB"""
@@ -137,12 +149,12 @@ class RecordWav:
         _to = len(data_all) - 1
 
         for i, b in enumerate(data_all):
-            if abs(b) > rospy.get_param('~audio_threshold', 2000):
+            if abs(b) > RecordWav.THRESHOLD:
                 _from = max(0, i - RecordWav.TRIM_APPEND)
                 break
 
         for i, b in enumerate(reversed(data_all)):
-            if abs(b) > rospy.get_param('~audio_threshold', 2000):
+            if abs(b) > RecordWav.THRESHOLD:
                 _to = min(len(data_all) - 1, len(data_all) - 1 - i + RecordWav.TRIM_APPEND)
                 break
 
@@ -214,11 +226,18 @@ class GoogleCloudSpeechNode:
         self.client = GoogleCloudSpeech()
         self.recoder = RecordWav()
 
+        self.conf_srv = Server(RecognitionConfig, self.callback_config)
+
         self.t1 = threading.Thread(target=self.handle_speech_recognition)
         self.t1.start()
 
         rospy.loginfo('%s initialized...' % rospy.get_name())
         rospy.spin()
+
+    def callback_config(self, config, level):
+        self.recoder.set_threshold(config['audio_threshold'])
+        self.client.set_language_code(config['language'])
+        return config
 
     def handle_speech_recognition(self):
         while not rospy.is_shutdown():
@@ -237,6 +256,8 @@ class GoogleCloudSpeechNode:
                 wave_file.close()
 
                 self.client.recognize()
+
+            rospy.sleep(0.1)
 
 
 if __name__ == '__main__':

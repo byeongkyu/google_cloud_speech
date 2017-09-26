@@ -9,6 +9,7 @@ project(google_cloud_speech)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
   message_generation
+  dynamic_reconfigure
   rospy
   std_msgs
 )
@@ -87,10 +88,9 @@ generate_messages(
 ##     and list every .cfg file to be processed
 
 ## Generate dynamic reconfigure parameters in the 'cfg' folder
-# generate_dynamic_reconfigure_options(
-#   cfg/DynReconf1.cfg
-#   cfg/DynReconf2.cfg
-# )
+generate_dynamic_reconfigure_options(
+  cfg/Recognition.cfg
+)
 
 ###################################
 ## catkin specific configuration ##
