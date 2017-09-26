@@ -27,6 +27,7 @@ def py_error_handler(filename, line, function, err, fmt):
     pass
 c_error_handler = ERROR_HANDLER_FUNC(py_error_handler)
 
+
 @contextlib.contextmanager
 def noalsaerr():
     asound = cdll.LoadLibrary('libasound.so')
@@ -34,7 +35,8 @@ def noalsaerr():
     yield
     asound.snd_lib_error_set_handler(None)
 
-AUDIO_FILE="record.wav"
+
+AUDIO_FILE = "record.wav"
 
 
 class GoogleCloudSpeech:
@@ -52,12 +54,14 @@ class GoogleCloudSpeech:
 
     def recognize(self):
         with open(AUDIO_FILE, 'rb') as stream:
-            sample = self.client.sample(stream=stream, encoding=speech.Encoding.LINEAR16, sample_rate_hertz=16000)
+            sample = self.client.sample(
+                stream=stream, encoding=speech.Encoding.LINEAR16,
+                sample_rate_hertz=16000)
             results = sample.streaming_recognize(
-                    language_code='en-US',
-                    interim_results=True,
-                    single_utterance=False,
-                    speech_contexts=self.vocabulary)
+                language_code='en-US',
+                interim_results=True,
+                single_utterance=False,
+                speech_contexts=self.vocabulary)
 
             try:
                 for result in results:
@@ -66,20 +70,24 @@ class GoogleCloudSpeech:
                             msg = RecognizedWord()
                             msg.recognized_word = alternative.transcript
                             msg.confidence = alternative.confidence
-                            rospy.loginfo('%s recognized...(%s), confidence (%s) ...'%
-                                (rospy.get_name(), alternative.transcript.encode('utf-8'), alternative.confidence))
+                            rospy.loginfo(
+                                '%s recognized...(%s), confidence (%s) ...' %
+                                (rospy.get_name(),
+                                    alternative.transcript.encode('utf-8'),
+                                    alternative.confidence))
                             self.pub_recognized_word.publish(msg)
             except:
                 pass
+
 
 class RecordWav:
     CHUNK_SIZE = 1024
     RATE = 16000
     CHANNELS = 1
-    THRESHOLD = 1600  # audio levels not normalised.
+    THRESHOLD = 2000  # audio levels not normalised.
     BUFFERSIZE = 2 ** 12
 
-    SILENT_CHUNKS = 6 * RATE / CHUNK_SIZE  # about 1sec
+    SILENT_CHUNKS = 3 * RATE / CHUNK_SIZE  # about 1sec
     FORMAT = pyaudio.paInt16
     FRAME_MAX_VALUE = 2 ** 15 - 1
     NORMALIZE_MINUS_ONE_dB = 10 ** (-1.0 / 20)
@@ -89,10 +97,11 @@ class RecordWav:
         with noalsaerr():
             self.p = pyaudio.PyAudio()
         self.audio_data = np.empty((self.CHUNK_SIZE * self.BUFFERSIZE), dtype=np.int16)
+        self.threshold = rospy.get_param('~audio_threshold', 2000)
 
         self.enable_recognition = True
-
         rospy.Subscriber('enable_recognition', Bool, self.handle_enable_recognition)
+
         self.pub_start_speech = rospy.Publisher('start_of_speech', Empty, queue_size=10)
         self.pub_end_speech = rospy.Publisher('end_of_speech', Empty, queue_size=10)
         self.pub_silency_detected = rospy.Publisher('silency_detected', Empty, queue_size=10)
@@ -107,7 +116,7 @@ class RecordWav:
 
     def is_silent(self, data_chunk):
         """Returns 'True' if below the 'silent' threshold"""
-        return max(data_chunk) < RecordWav.THRESHOLD
+        return max(data_chunk) < rospy.get_param('~audio_threshold', 2000)
 
     def normalize(self, data_all):
         """Amplify the volume out to max -1dB"""
@@ -116,7 +125,8 @@ class RecordWav:
         if len(data_all) == 0:
             return r
 
-        normalize_factor = (float(RecordWav.NORMALIZE_MINUS_ONE_dB * RecordWav.FRAME_MAX_VALUE)
+        normalize_factor = (float(
+            RecordWav.NORMALIZE_MINUS_ONE_dB * RecordWav.FRAME_MAX_VALUE)
             / max(abs(i) for i in data_all))
         for i in data_all:
             r.append(int(i * normalize_factor))
@@ -127,12 +137,12 @@ class RecordWav:
         _to = len(data_all) - 1
 
         for i, b in enumerate(data_all):
-            if abs(b) > RecordWav.THRESHOLD:
+            if abs(b) > rospy.get_param('~audio_threshold', 2000):
                 _from = max(0, i - RecordWav.TRIM_APPEND)
                 break
 
         for i, b in enumerate(reversed(data_all)):
-            if abs(b) > RecordWav.THRESHOLD:
+            if abs(b) > rospy.get_param('~audio_threshold', 2000):
                 _to = min(len(data_all) - 1, len(data_all) - 1 - i + RecordWav.TRIM_APPEND)
                 break
 
@@ -142,7 +152,9 @@ class RecordWav:
         return copy.deepcopy(data_all[_from:(_to + 1)])
 
     def record(self):
-        stream = self.p.open(format=RecordWav.FORMAT, channels=RecordWav.CHANNELS, rate=RecordWav.RATE,
+        stream = self.p.open(
+            format=RecordWav.FORMAT, channels=RecordWav.CHANNELS,
+            rate=RecordWav.RATE,
             input=True, output=False, frames_per_buffer=RecordWav.CHUNK_SIZE)
 
         silent_chunks = 0
@@ -162,7 +174,7 @@ class RecordWav:
                 if silent:
                     silent_chunks += 1
                     if silent_chunks > RecordWav.SILENT_CHUNKS:
-                        rospy.logdebug('Recording Stoped...')
+                        rospy.loginfo('\033[95m[%s] \033[94mRecording stoped...\033[0m' % rospy.get_name())
                         self.pub_end_speech.publish()
                         break
                 else:
@@ -171,13 +183,13 @@ class RecordWav:
             elif not silent:
                 audio_started = True
                 if self.enable_recognition:
-                    rospy.logdebug('Recording started...')
+                    rospy.loginfo('\033[95m[%s] \033[92mRecording started...\033[0m' % rospy.get_name())
                     self.pub_start_speech.publish()
             else:
                 silent_count += 1
                 if silent_count > 50:
-                    silent_count = 0;
-                    rospy.logdebug("Silency detected...")
+                    silent_count = 0
+                    rospy.loginfo("Silency detected...")
                     self.pub_silency_detected.publish()
 
         sample_width = self.p.get_sample_size(RecordWav.FORMAT)
@@ -205,7 +217,7 @@ class GoogleCloudSpeechNode:
         self.t1 = threading.Thread(target=self.handle_speech_recognition)
         self.t1.start()
 
-        rospy.loginfo('%s initialized...'%rospy.get_name())
+        rospy.loginfo('%s initialized...' % rospy.get_name())
         rospy.spin()
 
     def handle_speech_recognition(self):
@@ -225,6 +237,7 @@ class GoogleCloudSpeechNode:
                 wave_file.close()
 
                 self.client.recognize()
+
 
 if __name__ == '__main__':
     m = GoogleCloudSpeechNode()
