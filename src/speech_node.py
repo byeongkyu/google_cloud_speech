@@ -106,7 +106,7 @@ class RecordWav:
         with noalsaerr():
             self.p = pyaudio.PyAudio()
         self.audio_data = np.empty((self.CHUNK_SIZE * self.BUFFERSIZE), dtype=np.int16)
-        self.threshold = rospy.get_param('~audio_threshold', 2000)
+        self.threshold = rospy.get_param('~audio_threshold', 2500)
 
         self.enable_recognition = True
         rospy.Subscriber('enable_recognition', Bool, self.handle_enable_recognition)
@@ -256,8 +256,7 @@ class GoogleCloudSpeechNode:
                 wave_file.close()
 
                 self.client.recognize()
-
-            rospy.sleep(0.1)
+            rospy.sleep(0.5)
 
 
 if __name__ == '__main__':
