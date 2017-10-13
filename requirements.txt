@@ -1,2 +1,5 @@
 google-cloud-speech==0.29.0
 PyAudio
+numpy
+matplotlib
+scipy
