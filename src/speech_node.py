@@ -18,6 +18,7 @@ from scipy.fftpack import rfft, irfft, fftfreq
 import signal
 
 import pyaudio
+import audioop
 import wave
 from google.cloud import speech
 
@@ -106,7 +107,6 @@ class RecordDetectAudio:
         with noalsaerr():
             self.p = pyaudio.PyAudio()
 
-
         self.fig = plt.figure()
         self.fig.canvas.toolbar.pack_forget()
         self.ax = self.fig.add_subplot(111)
@@ -145,6 +145,13 @@ class RecordDetectAudio:
     def record(self):
         stream = self.p.open(format=RecordDetectAudio.FORMAT, channels=RecordDetectAudio.CHANNELS,
             rate=RecordDetectAudio.RATE, input=True, output=False, frames_per_buffer=RecordDetectAudio.CHUNK_SIZE)
+
+        rms = []
+        for i in range(10):
+            data = stream.read(RecordDetectAudio.CHUNK_SIZE)
+            rms.append(audioop.rms(data, 2))
+        self.threshold2 = np.mean(rms) * 7
+        print self.threshold2
 
         data_all = array('h')
         audio_started = False
@@ -221,7 +228,8 @@ class RecordDetectAudio:
         os.kill(os.getpid(), signal.SIGUSR2)
 
         m_signal = f_signal.copy()
-        if np.mean(np.abs(m_signal[16:96])) > self.threshold:
+        # print np.mean(np.abs(m_signal[16:96]))
+        if np.mean(np.abs(m_signal[16:96])) > self.threshold2:
             self.detect_count += 1
         else:
             self.detect_count = 0
