@@ -150,7 +150,7 @@ class RecordDetectAudio:
         for i in range(10):
             data = stream.read(RecordDetectAudio.CHUNK_SIZE)
             rms.append(audioop.rms(data, 2))
-        self.threshold2 = np.mean(rms) * 7
+        self.threshold2 = np.mean(rms) * 50
         print self.threshold2
 
         data_all = array('h')
