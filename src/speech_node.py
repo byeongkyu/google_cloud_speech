@@ -151,6 +151,8 @@ class RecordDetectAudio:
             data = stream.read(RecordDetectAudio.CHUNK_SIZE)
             rms.append(audioop.rms(data, 2))
         self.threshold2 = np.mean(rms) * 50
+        if self.threshold2 > 2000:
+            self.threshold2 = 2000
         print self.threshold2
 
         data_all = array('h')
@@ -164,7 +166,10 @@ class RecordDetectAudio:
                 data_chunk.byteswap()
 
             data, is_silent = self.fft(data_chunk)
-            data_all.extend(data)
+            try:
+                data_all.extend(data)
+            except OverflowError as e:
+                continue
 
             if audio_started:
                 if is_silent:
@@ -234,7 +239,7 @@ class RecordDetectAudio:
         else:
             self.detect_count = 0
 
-        if self.detect_count > 6:
+        if self.detect_count > 0:
             self.detect_count = 0
             return irfft(m_signal).astype(np.int32), False
         else:
