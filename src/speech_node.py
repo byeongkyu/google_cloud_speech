@@ -99,7 +99,7 @@ class RecordDetectAudio:
     RATE = 16000
     CHANNELS = 1
     FORMAT = pyaudio.paInt16
-    SILENT_CHUNK_SIZE = (RATE/CHUNK_SIZE)*2
+    SILENT_CHUNK_SIZE = (RATE/CHUNK_SIZE)*1.5
     FRAME_MAX_VALUE = 2 ** 15 - 1
     NORMALIZE_MINUS_ONE_dB = 10 ** (-1.0 / 20)
 
@@ -150,9 +150,9 @@ class RecordDetectAudio:
         for i in range(10):
             data = stream.read(RecordDetectAudio.CHUNK_SIZE)
             rms.append(audioop.rms(data, 2))
-        self.threshold2 = np.mean(rms) * 50
-        if self.threshold2 > 2000:
-            self.threshold2 = 2000
+        self.threshold2 = np.mean(rms) * 80
+        if self.threshold2 > 2500:
+            self.threshold2 = 2500
         print self.threshold2
 
         data_all = array('h')
