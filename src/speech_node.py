@@ -56,6 +56,7 @@ class GoogleCloudSpeech:
         if self.vocabulary_file != '':
             target_file = os.path.abspath(self.vocabulary_file)
             target_file = os.path.expanduser(self.vocabulary_file)
+            print target_file
             with open(target_file) as f:
                 self.vocabulary = yaml.load(f)
                 rospy.loginfo('load user vocabulary...')
