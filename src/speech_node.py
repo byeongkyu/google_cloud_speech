@@ -21,6 +21,8 @@ import pyaudio
 import audioop
 import wave
 from google.cloud import speech
+from google.cloud.speech import enums
+from google.cloud.speech import types
 
 import rospy
 from std_msgs.msg import Bool, String, Float64, Empty
@@ -66,33 +68,39 @@ class GoogleCloudSpeech:
 
     def recognize(self):
         with open(AUDIO_FILE, 'rb') as stream:
-            sample = self.client.sample(
-                stream=stream, encoding=speech.Encoding.LINEAR16,
-                sample_rate_hertz=16000)
+            content = stream.read()
+            audio = types.RecognitionAudio(content=content)
 
-            rospy.loginfo('Request to cloud.google.com...')
-            results = sample.streaming_recognize(
-                language_code=self.language_code,
-                interim_results=True,
-                single_utterance=False,
-                speech_contexts=self.vocabulary)
+        config = types.RecognitionConfig(
+            encoding=enums.RecognitionConfig.AudioEncoding.LINEAR16,
+            sample_rate_hertz=16000,
+            language_code=self.language_code,
+            speech_contexts=self.vocabulary)
+        streaming_config = types.StreamingRecognitionConfig(
+            config=config,
+            single_utterance=False,
+            interim_results=True)
 
-            try:
-                rospy.loginfo('Response from cloud.google.com...')
-                for result in results:
-                    for alternative in result.alternatives:
-                        if result.is_final:
-                            msg = RecognizedWord()
-                            msg.recognized_word = alternative.transcript
-                            msg.confidence = alternative.confidence
-                            rospy.loginfo(
-                                '%s recognized...(%s), confidence (%s) ...' %
-                                (rospy.get_name(),
-                                    alternative.transcript.encode('utf-8'),
-                                    alternative.confidence))
-                            self.pub_recognized_word.publish(msg)
-            except:
-                pass
+        rospy.loginfo('Request to cloud.google.com...')
+        results = self.client.streaming_recognize(streaming_config, audio)
+
+        try:
+            rospy.loginfo('Response from cloud.google.com...')
+            for result in results:
+                print result
+                for alternative in result.alternatives:
+                    if result.is_final:
+                        msg = RecognizedWord()
+                        msg.recognized_word = alternative.transcript
+                        msg.confidence = alternative.confidence
+                        rospy.loginfo(
+                            '%s recognized...(%s), confidence (%s) ...' %
+                            (rospy.get_name(),
+                                alternative.transcript.encode('utf-8'),
+                                alternative.confidence))
+                        self.pub_recognized_word.publish(msg)
+        except:
+            pass
 
 
 class RecordDetectAudio:
@@ -212,8 +220,9 @@ class RecordDetectAudio:
         if len(data) == 0:
             return r
 
-        normalize_factor = (float(RecordDetectAudio.NORMALIZE_MINUS_ONE_dB * RecordDetectAudio.FRAME_MAX_VALUE)
-            / max(abs(i) for i in data))
+        normalize_factor = (
+            float(RecordDetectAudio.NORMALIZE_MINUS_ONE_dB * RecordDetectAudio.FRAME_MAX_VALUE)
+                / max(abs(i) for i in data))
         for i in data:
             r.append(int(i * normalize_factor))
         return r
