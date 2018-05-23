@@ -14,8 +14,7 @@
 
   <buildtool_depend>catkin</buildtool_depend>
   <exec_depend>rospy</exec_depend>
-  <exec_depend>python-pyaudio</exec_depend>
-  <depend>libportaudio-ocaml-dev</depend>
+  <!--<depend>libportaudio-ocaml-dev</depend>-->
   <depend>message_generation</depend>
   <depend>std_msgs</depend>
 

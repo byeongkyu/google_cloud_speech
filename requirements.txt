@@ -1,4 +1,4 @@
-google-cloud-speech==0.29.0
+google-cloud-speech
 PyAudio
 numpy
 matplotlib

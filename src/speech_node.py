@@ -48,7 +48,7 @@ AUDIO_FILE = "record.wav"
 
 class GoogleCloudSpeech:
     def __init__(self):
-        self.client = speech.Client()
+        self.client = speech.SpeechClient()
         self.pub_recognized_word = rospy.Publisher('recognized_word', RecognizedWord, queue_size=10)
         self.language_code = 'en_US'
         self.vocabulary_file = rospy.get_param('~vocabulary_file', "")
