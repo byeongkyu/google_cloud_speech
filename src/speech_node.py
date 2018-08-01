@@ -107,7 +107,7 @@ class GoogleCloudSpeechNode:
         self.pub_start_speech = rospy.Publisher('start_of_speech', Empty, queue_size=10)
         self.pub_end_speech = rospy.Publisher('end_of_speech', Empty, queue_size=10)
 
-        self.language_code = 'en_US' #default language code
+        self.language_code = 'en-US' #default language code
         self.conf_srv = Server(RecognitionConfig, self.callback_config)
         self.vocabulary_file = rospy.get_param('~vocabulary_file', '')
         self.vocabulary = []
