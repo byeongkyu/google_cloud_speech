@@ -117,7 +117,7 @@ class GoogleCloudSpeechNode:
             with open(target_file) as f:
                 self.vocabulary = yaml.load(f)
                 rospy.loginfo('load and set user vocabulary...')
-        self.enable_recognition = False
+        self.enable_recognition = True ##
 
         client = speech.SpeechClient()
 
@@ -133,10 +133,10 @@ class GoogleCloudSpeechNode:
 
             if not self.enable_recognition:
                 rospy.sleep(0.1)
-                continue
+                continue           
 
-            pygame.mixer.music.load(self.begin_sound)
-            pygame.mixer.music.play()
+            #pygame.mixer.music.load(self.begin_sound)
+            #pygame.mixer.music.play()
 
             with MicrophoneStream(RATE, CHUNK) as self.stream:
                 audio_generator = self.stream.generator()
@@ -146,13 +146,14 @@ class GoogleCloudSpeechNode:
                 responses = client.streaming_recognize(streaming_config, requests)
                 self.listen_and_loop(responses)
 
-            self.enable_recognition = False
+            self.enable_recognition = True
+            self.stream.stop_recording()
 
     def handle_enable_recognition(self, msg):
         self.enable_recognition = msg.data
         if not msg.data:
-            pygame.mixer.music.load(self.end_sound)
-            pygame.mixer.music.play()
+            #pygame.mixer.music.load(self.end_sound)
+            #pygame.mixer.music.play()
             self.stream.stop_recording()
 
     def listen_and_loop(self, responses):
@@ -160,8 +161,10 @@ class GoogleCloudSpeechNode:
 
         for response in responses:
             if response.speech_event_type == 1:
-                pygame.mixer.music.load(self.end_sound)
-                pygame.mixer.music.play()
+                #pygame.mixer.music.load(self.end_sound)
+                #pygame.mixer.music.play()
+                self.stream.stop_recording()
+                pass
 
             if not response.results:
                 continue
