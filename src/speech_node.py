@@ -95,17 +95,27 @@ class MicrophoneStream(object):
 
 class GoogleCloudSpeechNode:
     def __init__(self):
-        pygame.init()
+        self.is_always_listening = rospy.get_param('~always_listening', False)
+        self.enable_recognition_sound = rospy.get_param('~enable_recognition_sound', False)
 
-        self.begin_sound = os.path.join(
-            rospkg.RosPack().get_path('google_cloud_speech'), 'resources', 'begin_record.wav')
-        self.end_sound = os.path.join(
-            rospkg.RosPack().get_path('google_cloud_speech'), 'resources', 'end_record.wav')
+        if self.enable_recognition_sound:
+            pygame.init()
 
-        rospy.Subscriber('enable_recognition', Bool, self.handle_enable_recognition)
+            self.begin_sound = os.path.join(
+                rospkg.RosPack().get_path('google_cloud_speech'), 'resources', 'begin_record.wav')
+            self.end_sound = os.path.join(
+                rospkg.RosPack().get_path('google_cloud_speech'), 'resources', 'end_record.wav')
+
+        if not self.is_always_listening:
+            rospy.Subscriber('enable_recognition', Bool, self.handle_enable_recognition)
+            self.enable_recognition = False
+        else:
+            self.enable_recognition = True
+
         self.pub_recognized_word = rospy.Publisher('recognized_word', RecognizedWord, queue_size=10)
-        self.pub_start_speech = rospy.Publisher('start_of_speech', Empty, queue_size=10)
-        self.pub_end_speech = rospy.Publisher('end_of_speech', Empty, queue_size=10)
+        self.pub_start_speech = rospy.Publisher('speech_started', Empty, queue_size=10)
+        self.pub_silency = rospy.Publisher('silency_detected', Empty, queue_size=10)
+        self.pub_end_speech = rospy.Publisher('speech_ended', Empty, queue_size=10)
 
         self.language_code = 'en-US' #default language code
         self.conf_srv = Server(RecognitionConfig, self.callback_config)
@@ -117,7 +127,8 @@ class GoogleCloudSpeechNode:
             with open(target_file) as f:
                 self.vocabulary = yaml.load(f)
                 rospy.loginfo('load and set user vocabulary...')
-        self.enable_recognition = True ##
+
+        rospy.loginfo("%s initialized..."%rospy.get_name())
 
         client = speech.SpeechClient()
 
@@ -133,10 +144,13 @@ class GoogleCloudSpeechNode:
 
             if not self.enable_recognition:
                 rospy.sleep(0.1)
-                continue           
+                continue
 
-            #pygame.mixer.music.load(self.begin_sound)
-            #pygame.mixer.music.play()
+            if self.enable_recognition_sound:
+                pygame.mixer.music.load(self.begin_sound)
+                pygame.mixer.music.play()
+
+            rospy.logdebug("start recognition...")
 
             with MicrophoneStream(RATE, CHUNK) as self.stream:
                 audio_generator = self.stream.generator()
@@ -146,7 +160,7 @@ class GoogleCloudSpeechNode:
                 responses = client.streaming_recognize(streaming_config, requests)
                 self.listen_and_loop(responses)
 
-            self.enable_recognition = True
+            self.enable_recognition = self.is_always_listening
             self.stream.stop_recording()
 
     def handle_enable_recognition(self, msg):
@@ -163,8 +177,12 @@ class GoogleCloudSpeechNode:
             if response.speech_event_type == 1:
                 #pygame.mixer.music.load(self.end_sound)
                 #pygame.mixer.music.play()
-                self.stream.stop_recording()
-                pass
+                rospy.logdebug("silency detected...")
+                self.pub_silency.publish()
+                if self.is_always_listening:
+                    self.stream.stop_recording()
+                else:
+                    return
 
             if not response.results:
                 continue
@@ -178,6 +196,7 @@ class GoogleCloudSpeechNode:
                     is_started_speech = True
                     self.pub_start_speech.publish()
             else:
+                rospy.logdebug("end recognition...")
                 is_started_speech = False
                 self.pub_end_speech.publish()
 

@@ -1,8 +1,12 @@
 <launch>
     <arg name="vocabulary_file" default=""/>
+    <arg name="always_listening" default="true"/>
+    <arg name="enable_recognition_sound" default="false"/>
 
     <env name="GOOGLE_APPLICATION_CREDENTIALS" value="$(find google_cloud_speech)/config/service_key.json"/>
     <node name="speech_node" type="speech_node.py" pkg="google_cloud_speech" output="screen">
         <param name="vocabulary_file" value="$(arg vocabulary_file)"/>
+        <param name="always_listening" value="$(arg always_listening"/>
+        <param name="enable_recognition_sound" value="$(arg enable_recognition_sound)"/>
     </node>
 </launch>
