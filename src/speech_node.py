@@ -204,6 +204,9 @@ class GoogleCloudSpeechNode:
                 msg.recognized_word = result.alternatives[0].transcript
                 msg.confidence = result.alternatives[0].confidence
 
+                rospy.loginfo("\033[91mRecognized:\033[0m %s", msg.recognized_word)
+                rospy.loginfo("\033[91mConfidence:\033[0m: %s", str(msg.confidence))
+
                 self.pub_recognized_word.publish(msg)
                 return
 
