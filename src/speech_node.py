@@ -117,6 +117,10 @@ class GoogleCloudSpeechNode:
         self.pub_silency = rospy.Publisher('silency_detected', Empty, queue_size=10)
         self.pub_end_speech = rospy.Publisher('speech_ended', Empty, queue_size=10)
 
+        self.timer_count = 0
+        self.watchdog_for_sliency = False
+        rospy.Timer(rospy.Duration(0.2), self.handle_timer_callback)
+
         self.language_code = 'en-US' #default language code
         self.conf_srv = Server(RecognitionConfig, self.callback_config)
         self.vocabulary_file = rospy.get_param('~vocabulary_file', '')
@@ -139,7 +143,7 @@ class GoogleCloudSpeechNode:
                 language_code=self.language_code)
             streaming_config = types.StreamingRecognitionConfig(
                 config=config,
-                single_utterance=True,
+                single_utterance=False,
                 interim_results=True)
 
             if not self.enable_recognition:
@@ -150,7 +154,9 @@ class GoogleCloudSpeechNode:
                 pygame.mixer.music.load(self.begin_sound)
                 pygame.mixer.music.play()
 
-            rospy.logdebug("start recognition...")
+            rospy.loginfo("start recognition...")
+            self.timer_count = 0
+            self.watchdog_for_sliency = True
 
             with MicrophoneStream(RATE, CHUNK) as self.stream:
                 audio_generator = self.stream.generator()
@@ -163,27 +169,32 @@ class GoogleCloudSpeechNode:
             self.enable_recognition = self.is_always_listening
             self.stream.stop_recording()
 
+    def handle_timer_callback(self, event):
+        if self.watchdog_for_sliency:
+            self.timer_count += 1
+            if self.timer_count > 50:
+                self.timer_count = 0
+                self.stream.stop_recording()
+                self.pub_silency.publish()
+                rospy.loginfo("silency detected...")
+
+                self.watchdog_for_sliency = False
+
+
     def handle_enable_recognition(self, msg):
         self.enable_recognition = msg.data
         if not msg.data:
             #pygame.mixer.music.load(self.end_sound)
             #pygame.mixer.music.play()
-            self.stream.stop_recording()
+            try:
+                self.stream.stop_recording()
+            except AttributeError as e:
+                return
 
     def listen_and_loop(self, responses):
         is_started_speech = False
 
         for response in responses:
-            if response.speech_event_type == 1:
-                #pygame.mixer.music.load(self.end_sound)
-                #pygame.mixer.music.play()
-                rospy.logdebug("silency detected...")
-                self.pub_silency.publish()
-                if self.is_always_listening:
-                    self.stream.stop_recording()
-                else:
-                    return
-
             if not response.results:
                 continue
 
@@ -194,10 +205,14 @@ class GoogleCloudSpeechNode:
             if not result.is_final:
                 if not is_started_speech:
                     is_started_speech = True
+                    self.timer_count = 0
                     self.pub_start_speech.publish()
             else:
-                rospy.logdebug("end recognition...")
+                rospy.loginfo("end recognition...")
                 is_started_speech = False
+                self.watchdog_for_sliency = False
+                self.timer_count = 0
+
                 self.pub_end_speech.publish()
 
                 msg = RecognizedWord()
