@@ -97,6 +97,7 @@ class GoogleCloudSpeechNode:
     def __init__(self):
         self.is_always_listening = rospy.get_param('~always_listening', False)
         self.enable_recognition_sound = rospy.get_param('~enable_recognition_sound', False)
+        self.timeout_for_silency_detect = rospy.get_param('~timeout_for_silency_detect', 5.0)
 
         if self.enable_recognition_sound:
             pygame.init()
@@ -172,7 +173,7 @@ class GoogleCloudSpeechNode:
     def handle_timer_callback(self, event):
         if self.watchdog_for_sliency:
             self.timer_count += 1
-            if self.timer_count > 50:
+            if self.timer_count > (self.timeout_for_silency_detect / 0.2):
                 self.timer_count = 0
                 self.stream.stop_recording()
                 self.pub_silency.publish()
