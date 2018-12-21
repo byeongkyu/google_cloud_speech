@@ -14,8 +14,17 @@ You can create a [Service Account](https://developers.google.com/identity/protoc
     $ roslaunch google_cloud_speech bringup.launch
 
 
+### Arguments
+
+    vocabulary_file: vocabulary file (https://cloud.google.com/speech-to-text/docs/basics#phrase-hints)
+    always_listening: always listen or manual
+    enable_recognition_sound: play sound when start recognition
+    timeout_for_silency_detect: timeout for silent detecting
+    language: select language for detecting (https://cloud.google.com/speech-to-text/docs/basics#languages)
+
+
 ### Tips
-    
+
 You can use "echo cancel" function that was supported by pulseaudio. It is help to recognition while robot speaking. If you use bluetooth speaker, connect it. Open System Setting/Sound.
 
 Select output device and input device, and then open Terminal:

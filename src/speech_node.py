@@ -12,7 +12,6 @@ import pygame
 
 import rospy
 import rospkg
-from dynamic_reconfigure.server import Server
 from google_cloud_speech.msg import RecognizedWord
 from google_cloud_speech.cfg import RecognitionConfig
 from std_msgs.msg import Bool, Empty
@@ -95,6 +94,7 @@ class MicrophoneStream(object):
 
 class GoogleCloudSpeechNode:
     def __init__(self):
+        self.language_code = rospy.get_param('~language', 'en-US')
         self.is_always_listening = rospy.get_param('~always_listening', False)
         self.enable_recognition_sound = rospy.get_param('~enable_recognition_sound', False)
         self.timeout_for_silency_detect = rospy.get_param('~timeout_for_silency_detect', 5.0)
@@ -122,8 +122,6 @@ class GoogleCloudSpeechNode:
         self.watchdog_for_sliency = False
         rospy.Timer(rospy.Duration(0.2), self.handle_timer_callback)
 
-        self.language_code = 'en-US' #default language code
-        self.conf_srv = Server(RecognitionConfig, self.callback_config)
         self.vocabulary_file = rospy.get_param('~vocabulary_file', '')
         self.vocabulary = []
         if self.vocabulary_file != '':
@@ -220,17 +218,11 @@ class GoogleCloudSpeechNode:
                 msg.recognized_word = result.alternatives[0].transcript
                 msg.confidence = result.alternatives[0].confidence
 
-                rospy.loginfo("\033[91mRecognized:\033[0m %s", msg.recognized_word)
+                rospy.loginfo("\033[91mRecognized:\033[0m %s", msg.recognized_word.encode('utf8'))
                 rospy.loginfo("\033[91mConfidence:\033[0m: %s", str(msg.confidence))
 
                 self.pub_recognized_word.publish(msg)
                 return
-
-
-    def callback_config(self, config, level):
-        self.language_code = config['language']
-        rospy.loginfo('set recognition language code to [%s]...'%self.language_code)
-        return config
 
 
 if __name__ == '__main__':
