@@ -13,7 +13,6 @@ import pygame
 import rospy
 import rospkg
 from google_cloud_speech.msg import RecognizedWord
-from google_cloud_speech.cfg import RecognitionConfig
 from std_msgs.msg import Bool, Empty
 from google_cloud_speech.msg import RecognizedWord
 
