@@ -2,5 +2,5 @@ google-cloud-speech
 PyAudio
 numpy
 matplotlib
-scipy
+#scipy
 pygame
